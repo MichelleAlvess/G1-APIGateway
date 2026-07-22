@@ -60,7 +60,7 @@ Senha:  Voto@123
 Perfil: VOTER
 ```
 
-Essas credenciais existem apenas para a demonstração local. Na integração final, o usuário deve vir do backend e do banco de dados da Pessoa 3.
+Essas credenciais existem apenas para a demonstração local. Na integração final, o usuário deve vir do backend e do banco de dados.
 
 ## Testar pelo terminal
 
@@ -109,21 +109,5 @@ npm test
 ```
 
 Os testes verificam login correto, credenciais incorretas, ausência de token, token válido, token adulterado e autorização por perfil.
-
-## Pontos importantes para explicar na apresentação
-
-1. O JWT não guarda a senha; ele guarda apenas identificadores e permissões necessárias.
-2. O token é assinado. Alterar qualquer parte dele invalida a assinatura.
-3. O middleware é executado antes da rota protegida. Ele chama `next()` somente quando o token é válido.
-4. `exp` limita o tempo de uso do token; `iss` e `aud` impedem aceitar tokens emitidos para outro sistema.
-5. O gateway centraliza a autenticação e evita repetir a mesma validação em cada serviço.
-6. O usuário em memória é apenas um adaptador local. A arquitetura permite substituir o repositório sem alterar o controller ou o middleware.
-
-## Limitações da versão acadêmica
-
-- O repositório de usuários está em memória para permitir a execução isolada.
-- Não há refresh token nem revogação imediata de tokens.
-- Com HS256, todas as instâncias autorizadas precisam compartilhar o mesmo segredo.
-- Para várias instâncias, controle de tentativas de login deve usar armazenamento compartilhado, como Redis.
 
 Consulte `INTEGRACAO.md` para juntar esta parte com o proxy, backend, banco e Docker Compose.
