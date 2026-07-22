@@ -1,6 +1,6 @@
 # Integração com as demais partes do grupo
 
-## Pessoa 2 — Roteador proxy
+## 2 — Roteador proxy
 
 O middleware `jwtMiddleware` deve ser executado antes das rotas encaminhadas ao backend:
 
@@ -17,7 +17,7 @@ proxyReq.setHeader('x-user-role', req.auth.role);
 
 O backend não deve confiar em valores `x-user-*` enviados diretamente pelo cliente. O gateway deve remover os cabeçalhos recebidos e recriá-los após validar o JWT.
 
-## Pessoa 3 — Backend e banco de dados
+## 3 — Backend e banco de dados
 
 A classe `InMemoryUserRepository` é apenas uma substituição temporária. Ela deve ser trocada por um repositório que consulte o serviço de usuários ou o banco de dados.
 
@@ -30,7 +30,7 @@ const user = await userRepository.findByEmail(email);
 
 A senha nunca deve ser salva em texto puro. O valor persistido deve ser um hash com salt.
 
-## Pessoa 4 — Docker Compose, GitHub e AWS
+## 4 — Docker Compose, GitHub e AWS
 
 No Docker Compose, o segredo JWT deve ser fornecido por variável de ambiente ou secret, nunca gravado no repositório. Todas as instâncias do gateway que usam HS256 precisam do mesmo segredo para validar os tokens.
 
