@@ -1,0 +1,22 @@
+@baseUrl = http://localhost:3000
+@token = COLE_O_TOKEN_AQUI
+
+### Saúde do serviço
+GET {{baseUrl}}/health
+
+### Login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "eleitor@votacao.local",
+  "password": "Voto@123"
+}
+
+### Validar token
+GET {{baseUrl}}/auth/validate
+Authorization: Bearer {{token}}
+
+### Exemplo de rota protegida
+GET {{baseUrl}}/api/me
+Authorization: Bearer {{token}}

@@ -1,0 +1,19 @@
+services:
+  api-gateway:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: voting-api-gateway
+      JWT_AUDIENCE: voting-services
+      JWT_EXPIRES_IN: 15m
+      DEMO_USER_EMAIL: eleitor@votacao.local
+      DEMO_USER_PASSWORD_HASH: ${DEMO_USER_PASSWORD_HASH}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
