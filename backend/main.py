@@ -11,12 +11,12 @@ app = FastAPI(
 
 DB_FILE = "votacao.db"
 
-# --- PERSISTÊNCIA DE DADOS (SQLite) ---
+
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     
-    # Tabela de Candidatos
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS candidatos (
             id INTEGER PRIMARY KEY,
@@ -25,8 +25,7 @@ def init_db():
             votos INTEGER DEFAULT 0
         )
     """)
-    
-    # Popula com candidatos iniciais se o banco estiver vazio
+
     cursor.execute("SELECT COUNT(*) FROM candidatos")
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO candidatos (id, nome, partido, votos) VALUES (1, 'Candidato A', 'Partido Sol', 0)")
@@ -34,14 +33,13 @@ def init_db():
         conn.commit()
     conn.close()
 
-# Inicializa o banco ao subir a aplicação
+
 init_db()
 
-# --- MODELO DE ENTRADA (SERIALIZAÇÃO) ---
+
 class VotoRequest(BaseModel):
     candidato_id: int
 
-# --- ROTAS DO BACKEND ---
 
 @app.get("/health", tags=["Monitoramento"])
 def health_check():
@@ -72,7 +70,7 @@ def registrar_voto(dados: VotoRequest):
     cursor.execute("SELECT votos FROM candidatos WHERE id = ?", (dados.candidato_id,))
     resultado = cursor.fetchone()
     
-    # Tratamento de exceção se o candidato não existir
+
     if not resultado:
         conn.close()
         raise HTTPException(
