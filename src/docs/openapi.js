@@ -4,11 +4,12 @@ export function createOpenApiDocument(config) {
     info: {
       title: 'API Gateway — Votação Eletrônica Escalável',
       version: '1.0.0',
-      description: 'Endpoint de login e validação JWT do grupo G1.'
+      description: 'Endpoint de login, validação JWT e Proxy de Votação do grupo G1.'
     },
     servers: [{ url: `http://localhost:${config.port}` }],
     tags: [
       { name: 'Autenticação' },
+      { name: 'Votação (Proxy)' },
       { name: 'Protegido' },
       { name: 'Infraestrutura' }
     ],
@@ -132,6 +133,45 @@ export function createOpenApiDocument(config) {
           responses: {
             200: { description: 'Dados extraídos do token' },
             401: { description: 'Não autenticado' }
+          }
+        }
+      },
+      // 🔹 ROTAS DO PROXY DE VOTAÇÃO (PESSOA 2)
+      '/api/v1/voting/candidatos': {
+        get: {
+          summary: 'Lista todos os candidatos (encaminhado para o backend)',
+          tags: ['Votação (Proxy)'],
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: { description: 'Lista de candidatos retornada com sucesso' },
+            401: { description: 'Não autorizado (Token JWT inválido ou ausente)' },
+            502: { description: 'Bad Gateway (Backend Python indisponível)' },
+            504: { description: 'Gateway Timeout (Backend não respondeu a tempo)' }
+          }
+        }
+      },
+      '/api/v1/voting/votar': {
+        post: {
+          summary: 'Registra um voto (encaminhado para o backend)',
+          tags: ['Votação (Proxy)'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    candidatoId: { type: 'integer', example: 1 }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            200: { description: 'Voto registrado com sucesso' },
+            401: { description: 'Não autorizado' },
+            502: { description: 'Backend indisponível' }
           }
         }
       }

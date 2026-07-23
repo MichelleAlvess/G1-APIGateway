@@ -14,6 +14,7 @@ import { createAuthRouter } from './routes/auth.routes.js';
 import { createProtectedRouter } from './routes/protected.routes.js';
 import { TokenService } from './security/token.js';
 import { AuthService } from './services/auth.service.js';
+import { proxyRouter } from './proxy/proxy.router.js';
 
 export function createApp(config = loadConfig()) {
   const app = express();
@@ -42,6 +43,7 @@ export function createApp(config = loadConfig()) {
   app.use(helmet());
   app.use(express.json({ limit: '16kb' }));
 
+  
   app.get('/health', (_req, res) => {
     res.status(200).json({
       status: 'UP',
@@ -50,10 +52,12 @@ export function createApp(config = loadConfig()) {
     });
   });
 
+  
   const openApiDocument = createOpenApiDocument(config);
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
   app.get('/openapi.json', (_req, res) => res.json(openApiDocument));
 
+  
   app.use(
     '/auth',
     createAuthRouter({
@@ -70,6 +74,12 @@ export function createApp(config = loadConfig()) {
     })
   );
 
+  
+  
+  
+  app.use('/api/v1/voting', jwtMiddleware, proxyRouter);
+
+  
   app.use(notFoundHandler);
   app.use(errorHandler);
 
