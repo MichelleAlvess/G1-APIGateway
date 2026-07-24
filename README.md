@@ -205,8 +205,10 @@ curl -X GET http://localhost:3000/api/v1/voting/candidatos \
 curl -X POST http://localhost:3000/api/v1/voting/votar \
   -H "Authorization: Bearer COLE_O_TOKEN_AQUI" \
   -H "Content-Type: application/json" \
-  -d '{"candidatoId": 1}'
+  -d '{"candidato_id": 1}'
 ```
+
+> Atenção: o backend em Python (FastAPI) espera o campo em `snake_case` (`candidato_id`), não `camelCase`. Usar `candidatoId` faz o Pydantic rejeitar o corpo da requisição.
 
 ### 5. Teste de Resiliência — Backend Indisponível (502 Bad Gateway)
 

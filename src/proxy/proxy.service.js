@@ -14,7 +14,14 @@ export class ProxyService {
 
     for (const [key, value] of Object.entries(req.headers)) {
       const lowerKey = key.toLowerCase();
-      if (lowerKey !== 'host' && !lowerKey.startsWith('x-user-')) {
+      // 'content-length' é recalculado pelo fetch a partir do corpo reserializado abaixo;
+      // repassar o valor original do cliente causa RequestContentLengthMismatchError
+      // sempre que o JSON.stringify do corpo tiver um tamanho em bytes diferente do original.
+      if (
+        lowerKey !== 'host' &&
+        lowerKey !== 'content-length' &&
+        !lowerKey.startsWith('x-user-')
+      ) {
         outgoingHeaders.set(key, value);
       }
     }
