@@ -1,0 +1,27 @@
+version: '3'
+
+services:
+  # api gateway em node
+  api-gateway:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - JWT_SECRET=chave_super_secreta_muito_segura_12345
+      - JWT_ISSUER=voting-api-gateway
+      - JWT_AUDIENCE=voting-services
+      - JWT_EXPIRES_IN=15m
+      - DEMO_USER_ID=usr-eleitor-001
+      - DEMO_USER_EMAIL=eleitor@votacao.local
+      - DEMO_USER_PASSWORD_HASH=scrypt$$e2502977b87a0788b6edf0ff8dad584d$$bcae24882310491931349a0e92353f8274c297d9637143b5b183983f96de897dd74b55a2be6d0d47d8081964cf45cff98f8ffdfe98fd7e3d964379e94ae98168
+      - BACKEND_SERVICE_URL=http://backend:8000
+    depends_on:
+      - backend
+
+  # backend em python
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
