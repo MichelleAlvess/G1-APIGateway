@@ -17,8 +17,6 @@ def get_db_connection():
     a concorrência multithread no SQLite.
     """
     conn = sqlite3.connect(DB_FILE, timeout=10.0, check_same_thread=False)
-    # Habilita o modo Write-Ahead Logging (WAL) para permitir leituras 
-    # e escritas simultâneas sem travar o banco.
     conn.execute("PRAGMA journal_mode=WAL;")
     return conn
 
@@ -46,8 +44,6 @@ def init_db():
 
 init_db()
 
-
-# DTO (Data Transfer Object) com Pydantic - Unmarshalling
 class VotoRequest(BaseModel):
     candidato_id: int
 
@@ -92,13 +88,11 @@ def registrar_voto(
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # 1. Incremento ATÔMICO no motor do banco de dados (Resolve Race Condition/Seção Crítica)
     cursor.execute(
         "UPDATE candidatos SET votos = votos + 1 WHERE id = ?", 
         (dados.candidato_id,)
     )
     
-    # Se nenhuma linha foi afetada, o candidato não existe
     if cursor.rowcount == 0:
         conn.close()
         raise HTTPException(
@@ -108,7 +102,6 @@ def registrar_voto(
     
     conn.commit()
 
-    # 2. Busca o total atualizado após a alteração atômica
     cursor.execute("SELECT votos FROM candidatos WHERE id = ?", (dados.candidato_id,))
     total_votos = cursor.fetchone()[0]
     conn.close()
