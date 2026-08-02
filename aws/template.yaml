@@ -159,6 +159,15 @@ Resources:
             Path: /api/v1/voting/candidatos
             Method: GET
 
+  VoteQueueDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: g1-voting-votes-dlq
+      # Retenção mais longa que a fila principal: dá tempo de investigar e
+      # reprocessar manualmente as mensagens que falharam repetidamente.
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
   VoteQueue:
     Type: AWS::SQS::Queue
     Properties:
@@ -166,6 +175,11 @@ Resources:
       MessageRetentionPeriod: 345600
       VisibilityTimeout: 30
       SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt VoteQueueDLQ.Arn
+        # Depois de 3 tentativas de entrega sem sucesso, a mensagem é
+        # movida para a DLQ em vez de ficar tentando pra sempre.
+        maxReceiveCount: 3
 
   VoteFunction:
     Type: AWS::Serverless::Function
@@ -189,6 +203,61 @@ Resources:
             Path: /api/v1/voting/votar
             Method: POST
 
+  VotesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: g1-voting-votes-count
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: candidato_id
+          AttributeType: N
+      KeySchema:
+        - AttributeName: candidato_id
+          KeyType: HASH
+
+  ProcessedVoteEventsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: g1-voting-processed-events
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: eventId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: eventId
+          KeyType: HASH
+
+  VoteWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: g1-voting-vote-worker
+      CodeUri: .
+      Handler: lambdas/vote-worker.handler
+      Description: >-
+        Consome os votos publicados no Amazon SQS, grava o resultado no
+        DynamoDB de forma idempotente e reporta falhas por mensagem.
+      Timeout: 15
+      Environment:
+        Variables:
+          VOTES_TABLE: !Ref VotesTable
+          PROCESSED_EVENTS_TABLE: !Ref ProcessedVoteEventsTable
+          LOCAL_DEMO_MODE: 'false'
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref VotesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProcessedVoteEventsTable
+      Events:
+        VoteQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt VoteQueue.Arn
+            BatchSize: 10
+            # Permite reportar só as mensagens do lote que falharam,
+            # em vez de reprocessar o lote inteiro a cada falha parcial.
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+
 Outputs:
   ApiBaseUrl:
     Description: URL base da API publicada.
@@ -205,3 +274,15 @@ Outputs:
   VoteQueueArn:
     Description: ARN da fila para integração com o worker do grupo.
     Value: !GetAtt VoteQueue.Arn
+
+  VoteQueueDLQUrl:
+    Description: URL da Dead-Letter Queue (mensagens que falharam repetidamente).
+    Value: !Ref VoteQueueDLQ
+
+  VotesTableName:
+    Description: Tabela DynamoDB com a contagem de votos por candidato.
+    Value: !Ref VotesTable
+
+  ProcessedVoteEventsTableName:
+    Description: Tabela DynamoDB usada para garantir idempotência do worker.
+    Value: !Ref ProcessedVoteEventsTable

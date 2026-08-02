@@ -20,9 +20,18 @@ Lambda Authorizer valida assinatura, expiração, emissor e audiência
   +------> Lambda Voto ------> Amazon SQS
   |
   +------> Lambda Validação
+
+Amazon SQS ------> Lambda Worker ------> Amazon DynamoDB
+                          |
+                          v (falha repetida)
+                   Dead-Letter Queue (DLQ)
 ```
 
-A fila SQS é o ponto de integração com o worker do restante do grupo. O worker poderá consumir a mensagem e gravar o voto no DynamoDB.
+A Lambda Worker (`vote-worker.js`) consome as mensagens da fila `VoteQueue`,
+grava a contagem de votos no DynamoDB e garante que reentregas da mesma
+mensagem (comportamento normal do SQS) não contem o voto duas vezes.
+Mensagens que falham repetidamente são desviadas para a Dead-Letter Queue
+(`VoteQueueDLQ`) em vez de travar o processamento das demais.
 
 ## Endpoints
 
@@ -32,7 +41,7 @@ A fila SQS é o ponto de integração com o worker do restante do grupo. O worke
 | `POST` | `/auth/login` | Pública | Valida as credenciais e gera o JWT |
 | `GET` | `/auth/validate` | JWT | Mostra os dados extraídos do token |
 | `GET` | `/api/v1/voting/candidatos` | JWT | Lista candidatos de demonstração |
-| `POST` | `/api/v1/voting/votar` | JWT | Envia o voto para o Amazon SQS |
+| `POST` | `/api/v1/voting/votar` | JWT | Envia o voto para o Amazon SQS (processado depois, de forma assíncrona, pela Lambda Worker) |
 
 Credenciais de demonstração:
 
@@ -55,9 +64,14 @@ aws/
 │   ├── validate.js
 │   ├── candidates.js
 │   ├── vote.js                   # Publica voto no SQS
+│   ├── vote-worker.js            # Consome o SQS e grava no DynamoDB (idempotente)
 │   └── common/                   # Código compartilhado
-├── events/                       # Eventos para sam local invoke
-└── test/                         # Testes da autenticação
+├── events/
+│   └── sqs-vote.json             # Evento de exemplo para testar o worker localmente
+└── test/
+    ├── aws-auth.test.js          # Testes da autenticação
+    ├── aws-api.test.js           # Testes das rotas da API
+    └── aws-worker.test.js        # Testes do worker (lote, duplicata, mensagem inválida, falha)
 ```
 
 ## Pré-requisitos
@@ -195,6 +209,23 @@ Invoke-RestMethod `
 - **Lambda Candidatos:** representa uma consulta simples da API.
 - **Lambda Voto:** valida a entrada, recupera o ID do eleitor do JWT e envia o evento ao SQS.
 - **Amazon SQS:** desacopla a recepção do voto do processamento e da persistência.
+- **Lambda Worker:** consome a fila em lote, garante idempotência (não conta o mesmo voto duas vezes) e grava o resultado no DynamoDB. Reporta apenas as mensagens que falharam (`ReportBatchItemFailures`), para não reprocessar o lote inteiro por causa de uma mensagem só.
+- **Dead-Letter Queue (DLQ):** recebe as mensagens que falharam 3 vezes seguidas, evitando que uma mensagem "envenenada" trave a fila indefinidamente.
+
+## Testar o worker localmente
+
+```powershell
+cd aws
+node --test test/aws-worker.test.js
+```
+
+Também é possível simular a invocação real via SAM, usando o evento de exemplo:
+
+```powershell
+cd aws
+sam build
+sam local invoke VoteWorkerFunction --event events/sqs-vote.json --env-vars events/env.worker.local.json
+```
 
 ## Limite proposital desta versão
 

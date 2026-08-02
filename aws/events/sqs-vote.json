@@ -1,0 +1,20 @@
+{
+  "Records": [
+    {
+      "messageId": "local-msg-0001",
+      "receiptHandle": "local-receipt-handle",
+      "body": "{\"eventId\":\"evt-local-0001\",\"type\":\"VOTE_SUBMITTED\",\"candidato_id\":1,\"eleitor_id\":\"usr-eleitor-001\",\"role\":\"VOTER\",\"request_id\":\"req-local-0001\",\"created_at\":\"2026-08-02T12:00:00.000Z\"}",
+      "attributes": {
+        "ApproximateReceiveCount": "1",
+        "SentTimestamp": "1735815600000",
+        "SenderId": "AIDAEXAMPLE",
+        "ApproximateFirstReceiveTimestamp": "1735815600000"
+      },
+      "messageAttributes": {},
+      "md5OfBody": "0000000000000000000000000000000",
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:us-east-1:000000000000:g1-voting-votes",
+      "awsRegion": "us-east-1"
+    }
+  ]
+}
