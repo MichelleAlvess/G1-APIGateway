@@ -1,0 +1,5 @@
+{
+  "type": "TOKEN",
+  "authorizationToken": "Bearer COLE_O_TOKEN_AQUI",
+  "methodArn": "arn:aws:execute-api:us-east-1:123456789012:api-id/Prod/GET/auth/validate"
+}

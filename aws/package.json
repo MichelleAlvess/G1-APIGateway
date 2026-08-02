@@ -1,0 +1,9 @@
+{
+  "name": "g1-voting-aws-lambdas",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Funções Lambda e autenticação JWT do Sistema de Votação Eletrônica Escalável.",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}

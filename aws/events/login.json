@@ -1,0 +1,13 @@
+{
+  "resource": "/auth/login",
+  "path": "/auth/login",
+  "httpMethod": "POST",
+  "headers": {
+    "content-type": "application/json"
+  },
+  "requestContext": {
+    "requestId": "req-login-local"
+  },
+  "body": "{\"email\":\"eleitor@votacao.local\",\"password\":\"Voto@123\"}",
+  "isBase64Encoded": false
+}

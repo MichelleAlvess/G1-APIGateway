@@ -226,3 +226,25 @@ Caso o backend em Python seja desligado enquanto uma requisição é feita ao pr
 ```
 
 Consulte `INTEGRACAO.md` para juntar esta parte com o proxy, backend, banco e Docker Compose.
+
+## Segunda parte - implantação na AWS
+
+A implementação simples de **Amazon API Gateway, autenticação JWT por Lambda Authorizer e funções AWS Lambda** está na pasta [`aws/`](aws/README.md).
+
+Ela preserva as rotas usadas no projeto local e acrescenta uma função de voto que publica mensagens no Amazon SQS:
+
+```text
+POST /auth/login
+GET  /auth/validate
+GET  /api/v1/voting/candidatos
+POST /api/v1/voting/votar
+```
+
+Para iniciar:
+
+```bash
+cd aws
+sam validate
+sam build
+sam deploy --guided
+```

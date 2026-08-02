@@ -1,0 +1,207 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >-
+  Implementação simples do Amazon API Gateway, autenticação JWT e funções Lambda
+  para o Sistema de Votação Eletrônica Escalável.
+
+Parameters:
+  StageName:
+    Type: String
+    Default: Prod
+    AllowedPattern: '[A-Za-z0-9_-]+'
+    Description: Nome do estágio publicado no Amazon API Gateway.
+
+  JwtSecret:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+    Description: Chave secreta usada para assinar e validar os JWTs da demonstração.
+
+  DemoUserEmail:
+    Type: String
+    Default: eleitor@votacao.local
+
+  DemoUserPasswordHash:
+    Type: String
+    NoEcho: true
+    Default: scrypt$e2502977b87a0788b6edf0ff8dad584d$bcae24882310491931349a0e92353f8274c297d9637143b5b183983f96de897dd74b55a2be6d0d47d8081964cf45cff98f8ffdfe98fd7e3d964379e94ae98168
+    Description: Hash scrypt da senha de demonstração Voto@123.
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Architectures:
+      - x86_64
+    MemorySize: 128
+    Timeout: 6
+    Tracing: Active
+    Environment:
+      Variables:
+        NODE_OPTIONS: --enable-source-maps
+
+Resources:
+  VotingApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: g1-voting-api
+      StageName: !Ref StageName
+      EndpointConfiguration: REGIONAL
+      TracingEnabled: true
+      Cors:
+        AllowOrigin: "'*'"
+        AllowHeaders: "'Content-Type,Authorization,X-Request-Id'"
+        AllowMethods: "'GET,POST,OPTIONS'"
+      Auth:
+        DefaultAuthorizer: JwtLambdaAuthorizer
+        AddDefaultAuthorizerToCorsPreflight: false
+        Authorizers:
+          JwtLambdaAuthorizer:
+            FunctionArn: !GetAtt JwtAuthorizerFunction.Arn
+            FunctionPayloadType: TOKEN
+            Identity:
+              Header: Authorization
+              ValidationExpression: '^Bearer [-0-9A-Za-z_=.]+$'
+              ReauthorizeEvery: 0
+      GatewayResponses:
+        UNAUTHORIZED:
+          StatusCode: '401'
+          ResponseTemplates:
+            application/json: '{"error":{"code":"AUTH_TOKEN_INVALID","message":"Token ausente, expirado ou inválido."}}'
+        ACCESS_DENIED:
+          StatusCode: '403'
+          ResponseTemplates:
+            application/json: '{"error":{"code":"AUTH_FORBIDDEN","message":"Usuário sem permissão para esta operação."}}'
+
+  JwtAuthorizerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: g1-voting-jwt-authorizer
+      CodeUri: .
+      Handler: lambdas/authorizer.handler
+      Description: Valida o JWT recebido no cabeçalho Authorization.
+      Environment:
+        Variables:
+          JWT_SECRET: !Ref JwtSecret
+          JWT_ISSUER: voting-api-gateway
+          JWT_AUDIENCE: voting-services
+
+  HealthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: g1-voting-health
+      CodeUri: .
+      Handler: lambdas/health.handler
+      Events:
+        Health:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VotingApi
+            Path: /health
+            Method: GET
+            Auth:
+              Authorizer: NONE
+
+  LoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: g1-voting-login
+      CodeUri: .
+      Handler: lambdas/login.handler
+      Description: Confere as credenciais e emite um JWT HS256 com expiração.
+      Environment:
+        Variables:
+          JWT_SECRET: !Ref JwtSecret
+          JWT_ISSUER: voting-api-gateway
+          JWT_AUDIENCE: voting-services
+          JWT_EXPIRES_IN_SECONDS: '900'
+          DEMO_USER_ID: usr-eleitor-001
+          DEMO_USER_NAME: Eleitor de Demonstração
+          DEMO_USER_EMAIL: !Ref DemoUserEmail
+          DEMO_USER_ROLE: VOTER
+          DEMO_USER_PASSWORD_HASH: !Ref DemoUserPasswordHash
+      Events:
+        Login:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VotingApi
+            Path: /auth/login
+            Method: POST
+            Auth:
+              Authorizer: NONE
+
+  ValidateTokenFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: g1-voting-validate-token
+      CodeUri: .
+      Handler: lambdas/validate.handler
+      Description: Retorna os dados que o Lambda Authorizer extraiu do JWT.
+      Events:
+        Validate:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VotingApi
+            Path: /auth/validate
+            Method: GET
+
+  CandidatesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: g1-voting-candidates
+      CodeUri: .
+      Handler: lambdas/candidates.handler
+      Description: Lista candidatos pela API protegida.
+      Events:
+        ListCandidates:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VotingApi
+            Path: /api/v1/voting/candidatos
+            Method: GET
+
+  VoteQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: g1-voting-votes
+      MessageRetentionPeriod: 345600
+      VisibilityTimeout: 30
+      SqsManagedSseEnabled: true
+
+  VoteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: g1-voting-submit-vote
+      CodeUri: .
+      Handler: lambdas/vote.handler
+      Description: Recebe o voto autenticado e publica uma mensagem no Amazon SQS.
+      Environment:
+        Variables:
+          VOTE_QUEUE_URL: !Ref VoteQueue
+          LOCAL_DEMO_MODE: 'false'
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt VoteQueue.QueueName
+      Events:
+        SubmitVote:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VotingApi
+            Path: /api/v1/voting/votar
+            Method: POST
+
+Outputs:
+  ApiBaseUrl:
+    Description: URL base da API publicada.
+    Value: !Sub 'https://${VotingApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${StageName}'
+
+  LoginUrl:
+    Description: Endpoint público de login.
+    Value: !Sub 'https://${VotingApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${StageName}/auth/login'
+
+  VoteQueueUrl:
+    Description: URL da fila na qual os votos são publicados.
+    Value: !Ref VoteQueue
+
+  VoteQueueArn:
+    Description: ARN da fila para integração com o worker do grupo.
+    Value: !GetAtt VoteQueue.Arn

@@ -38,3 +38,7 @@ Conforme escopo do projeto (G1), para a transição do ambiente de desenvolvimen
 2. **Segurança Avançada:** Pode ser integrado facilmente ao AWS WAF (Web Application Firewall) para bloquear robôs e ataques de negação de serviço (DDoS).
 3. **Autorização Nativa:** A validação do token JWT pode ser feita utilizando os *Lambda Authorizers* ou nativamente com o *Amazon Cognito*.
 4. **Monitoramento:** Métricas de latência e erros HTTP 5xx são rastreadas automaticamente no AWS CloudWatch, sem necessidade de programar logs complexos.
+
+## 6. Implementação AWS adicionada
+
+A proposta de nuvem deixou de ser apenas conceitual e foi implementada na pasta `aws/` com AWS SAM. O Amazon API Gateway expõe as mesmas rotas da versão local. A rota de login chama uma Lambda que emite JWT; as rotas protegidas passam por um Lambda Authorizer; e a Lambda de voto publica o evento no Amazon SQS para processamento assíncrono. Essa estrutura segue o fluxo sugerido para o projeto de votação escalável e mantém a implementação pequena o suficiente para demonstração acadêmica.
