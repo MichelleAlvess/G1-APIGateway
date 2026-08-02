@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Votação Eletrônica — Portal do Eleitor</title>
+  <meta name="description" content="Portal web estático do Sistema de Votação Eletrônica Escalável hospedado no AWS S3 com integração via API Gateway e JWT.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Background Decorative Glows -->
+  <div class="bg-glow glow-1"></div>
+  <div class="bg-glow glow-2"></div>
+
+  <!-- Header Navigation -->
+  <header class="navbar">
+    <div class="container nav-container">
+      <div class="brand">
+        <div class="brand-logo">⚡</div>
+        <div class="brand-text">
+          <h1>VotaçãoEletrônica<span>AWS</span></h1>
+          <span class="badge badge-s3">AWS S3 Hosted</span>
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <!-- API Endpoint Indicator -->
+        <button id="btn-api-config" class="btn-secondary btn-sm" title="Configurar URL da API Gateway">
+          <span class="status-dot online"></span>
+          <span id="lbl-api-target">API Gateway Local</span>
+        </button>
+
+        <!-- User Authentication State -->
+        <div id="user-pill" class="user-pill hidden">
+          <div class="user-avatar" id="user-avatar-initials">U</div>
+          <div class="user-info">
+            <span class="user-name" id="user-name-display">Usuário</span>
+            <span class="user-role" id="user-role-display">VOTER</span>
+          </div>
+          <button id="btn-logout" class="btn-icon" title="Sair da Conta">🚪</button>
+        </div>
+
+        <button id="btn-open-login" class="btn-primary">Entrar / Autenticar</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="container main-content">
+    
+    <!-- Hero / Welcome Banner -->
+    <section class="hero-card">
+      <div class="hero-text">
+        <h2>Sistema de Votação Seguro e Escalável</h2>
+        <p>Interface estática de alta performance hospedada no <strong>Amazon S3</strong>, conectada via <strong>API Gateway</strong> com autenticação via <strong>Token JWT</strong>.</p>
+      </div>
+      <div class="hero-stats">
+        <div class="stat-item">
+          <span class="stat-value" id="stat-total-candidatos">0</span>
+          <span class="stat-label">Candidatos</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="stat-total-votos">0</span>
+          <span class="stat-label">Votos Registrados</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="stat-status-gateway">Online</span>
+          <span class="stat-label">Gateway Status</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Voting Section -->
+    <section class="voting-section">
+      <div class="section-header">
+        <div>
+          <h3>Candidatos Disponíveis</h3>
+          <p>Selecione um candidato e confirme seu voto de forma rápida e segura.</p>
+        </div>
+        <button id="btn-refresh-candidatos" class="btn-secondary btn-sm">🔄 Atualizar Lista</button>
+      </div>
+
+      <!-- Alert Banner if not logged in -->
+      <div id="login-alert" class="alert alert-warning">
+        <span>🔒 Você precisa estar autenticado para registrar seu voto. </span>
+        <button id="btn-alert-login" class="btn-link">Clique aqui para fazer login</button>
+      </div>
+
+      <!-- Candidates Grid -->
+      <div id="candidates-grid" class="candidates-grid">
+        <!-- Skeleton loaders shown dynamically -->
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </section>
+
+    <!-- Results Section -->
+    <section class="results-section">
+      <div class="section-header">
+        <div>
+          <h3>Apuração dos Votos em Tempo Real</h3>
+          <p>Acompanhe a contagem atualizada de votos computados no sistema.</p>
+        </div>
+      </div>
+
+      <div id="results-container" class="results-container">
+        <!-- Progress Bars injected dynamically -->
+        <div class="empty-state">Aguardando dados da votação...</div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Login Modal -->
+  <div id="modal-login" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Autenticação do Eleitor</h3>
+        <button id="btn-close-login" class="btn-icon">✖</button>
+      </div>
+      <form id="form-login" class="modal-body">
+        <div class="form-group">
+          <label for="input-email">E-mail do Eleitor</label>
+          <input type="email" id="input-email" class="form-control" value="eleitor@votacao.local" required placeholder="eleitor@votacao.local">
+        </div>
+        <div class="form-group">
+          <label for="input-password">Senha de Acesso</label>
+          <input type="password" id="input-password" class="form-control" value="Voto@123" required placeholder="••••••••">
+        </div>
+        <div class="demo-credentials-box">
+          <small>🔑 <strong>Credenciais de Teste / Demo:</strong></small>
+          <code>eleitor@votacao.local / Voto@123</code>
+        </div>
+        <div id="login-error-msg" class="error-msg hidden"></div>
+        <button type="submit" id="btn-submit-login" class="btn-primary btn-block">
+          <span id="lbl-login-submit">Entrar e Obter Token JWT</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- API Config Modal -->
+  <div id="modal-api-config" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Configuração do Endpoint API Gateway</h3>
+        <button id="btn-close-api-config" class="btn-icon">✖</button>
+      </div>
+      <div class="modal-body">
+        <p class="text-sm">Alterne entre o ambiente local e a URL pública da AWS implantada no API Gateway.</p>
+        <div class="form-group">
+          <label for="input-api-url">URL Base da API Gateway</label>
+          <input type="url" id="input-api-url" class="form-control" value="http://localhost:3000" placeholder="https://xyz.execute-api.us-east-1.amazonaws.com/prod">
+        </div>
+        <button id="btn-save-api-url" class="btn-primary btn-block">Salvar e Atualizar Conexão</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification System -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-container">
+      <p>© 2026 Sistema de Votação Eletrônica Escalável | Pessoa 1: Frontend & Hospedagem AWS S3</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
