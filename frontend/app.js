@@ -207,7 +207,14 @@ async function fetchCandidates(userTriggered = false) {
 
     if (response.ok) {
       const data = await response.json();
-      state.candidates = Array.isArray(data) ? data : (data.candidatos || mockCandidates);
+      const rawCandidates = Array.isArray(data) ? data : (data.candidatos || mockCandidates);
+      state.candidates = rawCandidates.map(c => ({
+        id: c.id,
+        name: c.name || c.nome || `Candidato ${c.id}`,
+        party: c.party || c.partido || 'Partido Político',
+        description: c.description || c.descricao || 'Propostas registradas na plataforma eleitoral de votação.',
+        votes: c.votes !== undefined ? c.votes : (c.votos !== undefined ? c.votos : 0)
+      }));
       elements.statStatusGateway.textContent = 'Online';
       elements.statStatusGateway.style.color = 'var(--accent-green)';
     } else {
